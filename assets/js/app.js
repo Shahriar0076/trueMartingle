@@ -23,14 +23,14 @@ function insertData(){
         </tr>
     `)
     
-    for (let i = 0; i < steps; i++) {    
+    for (let i = 0; i < steps-1; i++) {    
         var next_bet = calculate_next_bets(initial, return_rate)
         initial = initial + next_bet
         total_price = total_price + next_bet
     
         $('tbody').append(`
             <tr>
-            <th>${i+1}</th>
+            <th>${i+2}</th>
             <td>$${next_bet}</td>
             <td class="text-right">$${total_price}</td>
             </tr>

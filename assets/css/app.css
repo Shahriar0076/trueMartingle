@@ -27,3 +27,15 @@ label{
     outline: 0;
     box-shadow: 0 0 0 0.25rem rgb(73 73 73 / 25%);
 }
+
+tbody tr:hover td {
+    color: #0dcaf0;
+    font-weight:700;
+    font-size:17px;
+}
+
+tbody tr:hover th {
+    color: #0dcaf0;
+    font-weight:700;
+    font-size:17px;
+}

@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width
+     initial-scale=1">
+    <title>Quotex Trades</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        tr.zero-income td {
+            background-color: #ffb2b2;
+        }
+    </style>
+</head>
+  <body class="container">
+    <h4 class="mt-5">Quotex Trades</h4>
+    
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card mt-5" style="width: 18rem;">
+                <div class="card-body">
+                    <h5 class="card-title">Total Revenue</h5>
+                    <p class="card-text" id="totalProfit"></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mt-5" style="width: 18rem;">
+                <div class="card-body">
+                    <h5 class="card-title">Win Trades</h5>
+                    <p class="card-text" id="totalTrades"></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mt-5" style="width: 18rem;">
+                <div class="card-body">
+                    <h5 class="card-title">Loss Trades</h5>
+                    <p class="card-text" id="lossTrades"></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mt-5" style="width: 18rem;">
+                <div class="card-body">
+                    <h5 class="card-title">Avg Win Rate</h5>
+                    <p class="card-text" id="winRate"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="csvFileInput" accept=".csv">
+
+    <div>
+        <canvas id="myChart"></canvas>
+    </div>
+    
+    <table  class="table table-bordered table-hover table-condensed d-none" id="csvTable">
+    </table>
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        $(document).ready(function() {
+
+            function makeData () {
+                // $('#csvTable tr')[0].remove()
+                // Get the tbody and reverse its children
+                var tbody = $('#csvTable');
+                tbody.html(tbody.children().get().reverse());
+
+                // Find rows with zero income in the 7th column and add a class to highlight them
+                $('#csvTable tr').filter(function() {
+                    return $(this).find('td:eq(6)').text() === '0';
+                }).addClass('zero-income');
+
+
+
+                // Get the unique dates from the 'Open time' column
+                var uniqueDates = [];
+                $('#csvTable tr').each(function() {
+                    var date = $(this).find('td:eq(2)').text().split(' ')[0]; // Extract date part
+                    if (!uniqueDates.includes(date) && date!="") {
+                        uniqueDates.push(date);
+                    }
+                });
+
+                console.log(uniqueDates);
+
+                // Create separate tables for each unique date
+                uniqueDates.forEach(function(date) {
+                    $('<h1>').addClass('mt-5').text(date).appendTo('body');
+                    var table = $('<table>').addClass('table table-bordered table-hover table-condensed tableseperated').appendTo('body');
+                    table.append(`
+                    <thead>
+                        <tr>
+                            <th title="Field #1">Info</th>
+                            <th title="Field #2">Profit</th>
+                            <th title="Field #3">Open time</th>
+                            <th title="Field #4">Close Time</th>
+                            <th title="Field #5">Type</th>
+                            <th title="Field #6">Amount</th>
+                            <th title="Field #7">Income</th>
+                        </tr>
+                    </thead>
+                    `);
+
+                    table.append('<tbody></tbody>');
+                    
+                    // Filter rows with the current date and append to the new table
+                    $('#csvTable tr').filter(function() {
+                        return $(this).find('td:eq(2)').text().startsWith(date);
+                    }).clone().appendTo(table.find('tbody'));
+                });
+
+
+                // Calculate win rate for each table with class 'tableseperated'
+                $('.tableseperated').each(function() {
+                    var totalRows = $(this).find('tbody tr').length;
+                    // console.log(totalRows);
+                    var winRows = $(this).find('tbody tr td:nth-child(7)').filter(function() {
+                        return parseFloat($(this).text()) > 0;
+                    });
+
+                    var loseRows = $(this).find('tbody tr td:nth-child(7)').filter(function() {
+                        return parseFloat($(this).text()) == 0;
+                    });                
+                    loseRows = loseRows.parent().find('td:nth-child(6)');
+
+                    var totalProfit = 0
+                    var totalLose = 0
+
+                    winRows.each(function() {
+                        totalProfit = totalProfit + parseFloat($(this).text()) - parseFloat($(this).parent().find('td:nth-child(6)').text())
+                    });
+
+                    loseRows.each(function() {
+                        totalLose = totalLose + parseFloat($(this).text())
+                    });
+
+                    
+                        
+
+                    winRows = winRows.length;
+
+                    var winRate = (winRows / totalRows) * 100;
+                    // console.log('Win Rate for table:', winRate.toFixed(2) + '%');
+
+                    var details = $("<div>").html(`
+                        <p>win rate: <span class='winRate'>${winRate.toFixed(2)}</span>%</p>
+                        <p>total trades: <span class='totalTrades'>${totalRows}</span></p>
+                        <p>win trades: <span class='winTrades'>${winRows}</span></p>
+                        <p>lose trades: <span class='lossTrades'>${totalRows-winRows}</span></p>
+                        <p>total profit: <span class='totalProfit'>${(totalProfit - totalLose).toFixed(2)}</span></p>
+                    `);
+                    $(this).before(details);
+
+
+                });
+
+                //add min column
+                $('.tableseperated').each(function() {
+                    var totalRows = $(this).find('tbody tr')
+                    $(this).find('thead tr').find('th:nth-child(4)').after('<th>Time</th>');
+                    totalRows.each(function() {
+                        $(this).find('td:nth-child(6)')
+                        var openTime = $(this).find('td:nth-child(3)').text();
+                        var closeTime = $(this).find('td:nth-child(4)').text();
+
+                        openTime = new Date(openTime)
+                        closeTime = new Date(closeTime)
+                        // Calculate the time difference in minutes
+                        // Calculate the time difference in minutes and seconds
+                        var timeDifferenceMinutes = Math.floor((closeTime - openTime) / (1000 * 60));
+                        var timeDifferenceSeconds = Math.floor((closeTime - openTime) / 1000) % 60;
+
+                        // Format the time difference
+                        var formattedTimeDifference = timeDifferenceMinutes + 'm ' + timeDifferenceSeconds + 's';
+
+                        $(this).find('td:nth-child(4)').after('<td>' + formattedTimeDifference + '</td>');
+
+                    })
+
+                })
+
+                var totalProfit = 0;
+                var totalProfitArray = [];
+                var totalWinTrades = 0;
+                var totalLossTrades = 0;
+                var AvgWinRateTrades = 0;
+
+                $('.totalProfit').each(function() {
+                    totalProfitArray.push(parseFloat($(this).text()).toFixed(2));
+                    totalProfit += parseFloat($(this).text());
+                })
+
+                $('.winTrades').each(function() {
+                    totalWinTrades += parseFloat($(this).text());
+                })
+
+                $('.lossTrades').each(function() {
+                    totalLossTrades += parseFloat($(this).text());
+                })
+
+                $('.winRate').each(function() {
+                    AvgWinRateTrades += parseFloat($(this).text());
+                })
+
+                AvgWinRateTrades = (AvgWinRateTrades/$('.winRate').length).toFixed(2)
+                totalProfit = totalProfit.toFixed(2)
+                $('#totalProfit').text(`$${totalProfit}`)
+                $('#totalTrades').text(`${totalWinTrades}`)
+                $('#lossTrades').text(`${totalLossTrades}`)
+                $('#winRate').text(`${AvgWinRateTrades}%`)
+
+
+                //create chart
+                const ctx = document.getElementById('myChart');
+            
+                new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: uniqueDates,
+                    datasets: [{
+                    label: '# of Votes',
+                    data: totalProfitArray,
+                    borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                    }
+                }
+                });
+            }
+
+            // Function to convert CSV data to array
+          function CSVToArray(csvData) {
+              var rows = csvData.split('\n');
+              var dataArray = [];
+
+              for (var i = 0; i < rows.length; i++) {
+                  var row = rows[i].split(',');
+                  // Remove double quotes from each value
+                  row = row.map(function(value) {
+                     return value.replace(/"/g, '');
+                  });
+                  dataArray.push(row);
+              }
+
+              return dataArray;
+          }
+
+          // Function to populate the table with CSV data
+          function populateTable(dataArray) {
+              var table = $('#csvTable');
+              table.empty();
+
+            //   // Add header row
+            //   var headerRow = $('<tr>');
+            //   for (var i = 0; i < dataArray[0].length; i++) {
+            //       if (i !== 2 && i !== 4 && i !== 6) {
+            //          headerRow.append($('<th>').text(dataArray[0][i]));
+            //       }
+            //   }
+            //   table.append(headerRow);
+
+              // Add data rows
+              for (var j = 1; j < dataArray.length; j++) {
+                  var dataRow = $('<tr>');
+                  for (var k = 0; k < dataArray[j].length; k++) {
+                     if (k !== 2 && k !== 4 && k !== 6) {
+                        dataRow.append($('<td>').text(dataArray[j][k]));
+                     }
+                  }
+                  table.append(dataRow);
+              }
+          }
+
+
+
+          // Event listener for file input change
+          $('#csvFileInput').on('change', function(e) {
+              // Get the selected file
+              var file = e.target.files[0];
+
+              // Check if the file is a CSV file
+              if (file && file.name.endsWith('.csv')) {
+                  // Read the file
+                  var reader = new FileReader();
+                  reader.onload = function(e) {
+                      // Parse CSV data
+                      var csvData = e.target.result;
+                      var dataArray = CSVToArray(csvData);
+
+                      // Populate the table with CSV data
+                      populateTable(dataArray);
+                      makeData ();
+                    //   $('#csvTable').addClass('d-none')
+                  };
+                  reader.readAsText(file);
+                  
+                  
+              } else {
+                  alert('Please select a valid CSV file.');
+              }
+
+              
+          });
+
+        
+          
+
+
+
+
+
+        });
+    </script>
+
+    <script>
+        
+    </script>
+        
+
+
+</body>
+</html>
